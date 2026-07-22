@@ -18,9 +18,11 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
 RUN mkdir -p /data
-ENV ASPNETCORE_URLS=http://0.0.0.0:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ConnectionStrings__DefaultConnection="Data Source=/data/barberia.db"
+# Render injects PORT; default to 8080 for local Docker runs.
+ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 EXPOSE 8080
 
 COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet", "Barberia.Api.dll"]
+CMD ["sh", "-c", "dotnet Barberia.Api.dll --urls http://0.0.0.0:${PORT:-8080}"]
