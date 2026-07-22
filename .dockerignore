@@ -1,0 +1,17 @@
+.dockerignore
+.git
+.github
+.vs
+.vscode
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.angular
+**/*.db
+**/*.db-shm
+**/*.db-wal
+frontend
+tests
+README.md
+docs

@@ -1,0 +1,33 @@
+<header class="topbar">
+  <a class="brand" routerLink="/" (click)="closeMenu()" aria-label="Ir al inicio">
+    <img class="brand-logo" src="/brand/gemelli-logo.png" width="42" height="42" alt="" />
+    <span>Gemelli Studio<small>Barbería · Asesoría</small></span>
+  </a>
+  <button class="menu-button" type="button" (click)="menuOpen.set(!menuOpen())" aria-label="Abrir menú" [attr.aria-expanded]="menuOpen()">☰</button>
+  <nav [class.open]="menuOpen()" aria-label="Navegación principal">
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMenu()">Inicio</a>
+    <a routerLink="/servicios" routerLinkActive="active" (click)="closeMenu()">Servicios</a>
+    <a routerLink="/reservar" routerLinkActive="active" (click)="closeMenu()">Reservar</a>
+    <a routerLink="/mis-citas" routerLinkActive="active" (click)="closeMenu()">Mis citas</a>
+    @if (auth.user()?.role === 'Admin') {
+      <a routerLink="/admin" routerLinkActive="active" (click)="closeMenu()">Administración</a>
+    }
+    @if (auth.user()?.role === 'Barber') {
+      <a routerLink="/barbero" routerLinkActive="active" (click)="closeMenu()">Mi agenda</a>
+    }
+    @if (auth.isAuthenticated()) {
+      <button class="link-button" type="button" (click)="auth.logout(); closeMenu()">Salir</button>
+    } @else {
+      <a class="nav-cta" routerLink="/login" (click)="closeMenu()">Staff</a>
+    }
+  </nav>
+</header>
+
+<main>
+  <router-outlet />
+</main>
+
+<footer>
+  <div><strong>Gemelli Studio</strong><span>Barbería y asesoría de imagen.</span></div>
+  <div><span>Lun–Sáb · 9:00 a 20:00</span><span>@gemelli.studio.ba</span></div>
+</footer>
