@@ -95,4 +95,29 @@ public sealed class SchedulingRulesTests : IAsyncLifetime
         Assert.DoesNotContain(slots, x => x.StartUtc == nine.AddMinutes(30));
         Assert.DoesNotContain(slots, x => x.StartUtc == nine.AddMinutes(90));
     }
+
+    [Fact]
+    public async Task GetAvailableSlots_StepsByServiceDuration()
+    {
+        var date = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(40));
+        var barber = new BarberProfile { UserId = "barber-2", DisplayName = "Hour Barber" };
+        var service = new BarberService { Name = "Corte sencillo", DurationMinutes = 60, Price = 50000 };
+        _database.AddRange(barber, service);
+        _database.Schedules.Add(new WeeklySchedule
+        {
+            Barber = barber,
+            DayOfWeek = date.DayOfWeek,
+            StartTime = new TimeOnly(9, 0),
+            EndTime = new TimeOnly(12, 0)
+        });
+        await _database.SaveChangesAsync();
+
+        var slots = await _service.GetAvailableSlotsAsync(barber.Id, service.Id, date);
+        var starts = slots.Select(x => x.StartUtc.TimeOfDay).ToArray();
+
+        Assert.Equal(
+            [new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0), new TimeSpan(11, 0, 0)],
+            starts);
+        Assert.All(slots, slot => Assert.Equal(TimeSpan.FromHours(1), slot.EndUtc - slot.StartUtc));
+    }
 }

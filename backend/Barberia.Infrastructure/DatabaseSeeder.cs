@@ -61,9 +61,9 @@ public static class DatabaseSeeder
             database.BarberServices.AddRange(
                 new BarberService
                 {
-                    Name = "Corte clásico (asesoría gratis)",
+                    Name = "Corte sencillo (asesoría gratis)",
                     Description = "Corte según tu rostro, tipo de cabello, perfil y estilo de vida. Incluye asesoría de imagen.",
-                    DurationMinutes = 45,
+                    DurationMinutes = 60,
                     Price = 50000m
                 },
                 new BarberService
@@ -77,7 +77,7 @@ public static class DatabaseSeeder
                 {
                     Name = "Combo corte + barba",
                     Description = "Experiencia completa: corte de cabello y barba con asesoría incluida.",
-                    DurationMinutes = 70,
+                    DurationMinutes = 90,
                     Price = 75000m
                 });
         }

@@ -7,8 +7,6 @@ namespace Barberia.Infrastructure;
 
 public sealed class AvailabilityService(BarberiaDbContext database) : IAvailabilityService
 {
-    private const int SlotStepMinutes = 15;
-
     public bool Overlaps(
         DateTime startUtc,
         DateTime endUtc,
@@ -34,6 +32,11 @@ public sealed class AvailabilityService(BarberiaDbContext database) : IAvailabil
             .SingleOrDefaultAsync(x => x.Id == serviceId && x.IsActive, cancellationToken)
             ?? throw new BusinessRuleException("The selected service does not exist or is inactive.");
 
+        if (service.DurationMinutes < 5)
+        {
+            throw new BusinessRuleException("The selected service has an invalid duration.");
+        }
+
         var schedules = await database.Schedules
             .AsNoTracking()
             .Where(x => x.BarberId == barberId && x.DayOfWeek == date.DayOfWeek && x.IsActive)
@@ -54,6 +57,8 @@ public sealed class AvailabilityService(BarberiaDbContext database) : IAvailabil
             .Select(x => new TimeRange(x.StartUtc, x.EndUtc))
             .ToListAsync(cancellationToken);
 
+        // Slot length and spacing both follow the selected service duration
+        // (e.g. a 60-minute cut offers 09:00, 10:00, 11:00).
         var duration = TimeSpan.FromMinutes(service.DurationMinutes);
         var now = DateTime.UtcNow;
         var slots = new List<TimeRange>();
@@ -72,7 +77,7 @@ public sealed class AvailabilityService(BarberiaDbContext database) : IAvailabil
                     slots.Add(new TimeRange(cursor, end));
                 }
 
-                cursor = cursor.AddMinutes(SlotStepMinutes);
+                cursor = cursor.Add(duration);
             }
         }
 
