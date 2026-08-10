@@ -17,7 +17,13 @@ RUN dotnet publish backend/Barberia.Api/Barberia.Api.csproj -c Release -o /app/p
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
+# Keep timezone data available for container hosts that rely on the system TZ DB.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN mkdir -p /data
+ENV TZ=America/Bogota
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ConnectionStrings__DefaultConnection="Data Source=/data/barberia.db"
 # Render injects PORT; default to 8080 for local Docker runs.

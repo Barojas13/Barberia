@@ -2,11 +2,17 @@ namespace Barberia.Infrastructure;
 
 /// <summary>
 /// Converts studio local times (Colombia) to and from UTC for scheduling.
+/// Uses a fixed UTC-5 offset because Colombia does not observe daylight saving,
+/// which also avoids timezone database issues in slim Docker images.
 /// </summary>
 public static class StudioTimeZone
 {
-    /// <summary>America/Bogota (UTC-5, no daylight saving).</summary>
-    public static TimeZoneInfo Bogota { get; } = ResolveBogota();
+    /// <summary>Colombia local time (UTC-5).</summary>
+    public static TimeZoneInfo Bogota { get; } = TimeZoneInfo.CreateCustomTimeZone(
+        "Colombia Standard Time",
+        TimeSpan.FromHours(-5),
+        "Hora de Colombia",
+        "Hora de Colombia");
 
     /**
      * Converts a local studio date and time into UTC.
@@ -27,28 +33,5 @@ public static class StudioTimeZone
     {
         var value = DateTime.SpecifyKind(utc.ToUniversalTime(), DateTimeKind.Utc);
         return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(value, Bogota));
-    }
-
-    private static TimeZoneInfo ResolveBogota()
-    {
-        foreach (var id in new[] { "America/Bogota", "SA Pacific Standard Time" })
-        {
-            try
-            {
-                return TimeZoneInfo.FindSystemTimeZoneById(id);
-            }
-            catch (TimeZoneNotFoundException)
-            {
-            }
-            catch (InvalidTimeZoneException)
-            {
-            }
-        }
-
-        return TimeZoneInfo.CreateCustomTimeZone(
-            "America/Bogota",
-            TimeSpan.FromHours(-5),
-            "Hora de Colombia",
-            "Hora de Colombia");
     }
 }
