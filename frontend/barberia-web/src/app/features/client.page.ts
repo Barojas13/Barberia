@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { ApiService } from '../core/api.service';
+import { ConfirmDialogService } from '../core/confirm-dialog.service';
 import { ApiError, Appointment, AppointmentStatus } from '../core/models';
 
 const LOOKUP_KEY = 'gemelli_booking_lookup';
@@ -80,6 +81,7 @@ const LOOKUP_KEY = 'gemelli_booking_lookup';
 })
 export class ClientPage {
   private readonly api = inject(ApiService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
   readonly appointments = signal<Appointment[]>([]);
@@ -135,8 +137,14 @@ export class ClientPage {
    * Cancels an appointment after confirmation.
    * @param appointment Appointment to cancel.
    */
-  cancel(appointment: Appointment): void {
-    if (!confirm('¿Seguro que deseas cancelar esta cita?')) return;
+  async cancel(appointment: Appointment): Promise<void> {
+    const confirmed = await this.confirmDialog.ask({
+      title: 'Cancelar cita',
+      message: `¿Seguro que deseas cancelar tu cita de ${appointment.serviceName}? Esta acción no se puede deshacer.`,
+      confirmLabel: 'Cancelar cita',
+      danger: true,
+    });
+    if (!confirmed) return;
     const { email, documentNumber } = this.lookupForm.getRawValue();
     this.cancelling.set(appointment.id);
     this.api

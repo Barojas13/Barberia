@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { ApiService } from '../core/api.service';
+import { ConfirmDialogService } from '../core/confirm-dialog.service';
 import {
   ApiError,
   Appointment,
@@ -252,6 +253,7 @@ type AdminTab = 'appointments' | 'services' | 'barbers' | 'schedules' | 'clients
 })
 export class AdminPage {
   private readonly api = inject(ApiService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly fb = inject(FormBuilder);
   readonly tabs: { id: AdminTab; label: string }[] = [
     { id: 'appointments', label: 'Citas' },
@@ -373,9 +375,19 @@ export class AdminPage {
    * @param item Barber card.
    * @param isActive Desired status.
    */
-  toggleBarber(item: Barber, isActive: boolean): void {
+  async toggleBarber(item: Barber, isActive: boolean): Promise<void> {
     const action = isActive ? 'activar' : 'desactivar';
-    if (!confirm(`¿Seguro que deseas ${action} a ${item.displayName}?`)) return;
+    const confirmed = await this.confirmDialog.ask({
+      title: isActive ? 'Activar barbero' : 'Desactivar barbero',
+      message: `¿Seguro que deseas ${action} a ${item.displayName}? ${
+        isActive
+          ? 'Volverá a aparecer en las reservas públicas.'
+          : 'Dejará de aparecer en las reservas públicas.'
+      }`,
+      confirmLabel: isActive ? 'Activar' : 'Desactivar',
+      danger: !isActive,
+    });
+    if (!confirmed) return;
     this.saving.set(true);
     this.error.set('');
     this.api
@@ -479,13 +491,21 @@ export class AdminPage {
    * Soft-deletes a service.
    * @param item Service to delete.
    */
-  deleteService(item: BarberService): void {
-    if (confirm(`¿Eliminar "${item.name}"?`)) {
-      this.api.deleteService(item.id).subscribe({
-        next: () => this.loadServices(),
-        error: (e: ApiError) => this.error.set(e.message),
-      });
-    }
+  async deleteService(item: BarberService): Promise<void> {
+    const confirmed = await this.confirmDialog.ask({
+      title: 'Eliminar servicio',
+      message: `¿Seguro que deseas eliminar "${item.name}"? Dejará de mostrarse en el catálogo público.`,
+      confirmLabel: 'Eliminar',
+      danger: true,
+    });
+    if (!confirmed) return;
+    this.api.deleteService(item.id).subscribe({
+      next: () => {
+        this.message.set('Servicio eliminado.');
+        this.loadServices();
+      },
+      error: (e: ApiError) => this.error.set(e.message),
+    });
   }
 
   /** Creates a barber account. */

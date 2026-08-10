@@ -928,6 +928,60 @@ td select { min-width: 135px; }
 .card-kicker.inactive-label {
   color: var(--danger);
 }
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.2rem;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  animation: confirmFade .2s ease both;
+}
+.confirm-modal {
+  width: min(420px, 100%);
+  padding: 1.6rem 1.5rem 1.4rem;
+  border: 1px solid rgba(199, 204, 211, 0.28);
+  background:
+    linear-gradient(165deg, rgba(232, 234, 237, 0.08), transparent 45%),
+    #101114;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55);
+  animation: confirmRise .25s ease both;
+}
+.confirm-modal h2 {
+  margin: .35rem 0 .7rem;
+  font-size: clamp(1.6rem, 4vw, 2rem);
+}
+.confirm-modal p {
+  margin: 0 0 1.4rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: .7rem;
+}
+.button.danger {
+  border-color: transparent;
+  background: linear-gradient(135deg, #ef8a86, #c45b57);
+  color: #140808;
+  font-weight: 700;
+}
+.button.danger:hover {
+  background: linear-gradient(135deg, #ff9d99, #d36b67);
+}
+@keyframes confirmFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes confirmRise {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 .timeline { border-left: 1px solid var(--accent-muted); }
 .timeline-item {
   display: grid;
