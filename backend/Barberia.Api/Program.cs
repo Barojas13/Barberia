@@ -65,11 +65,18 @@ builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("Angular", policy => policy
-        .WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-            ?? ["http://localhost:4200"])
-        .AllowAnyHeader()
-        .AllowAnyMethod());
+    var origins = ResolveCorsOrigins(builder.Configuration);
+    options.AddPolicy("Angular", policy =>
+    {
+        if (origins.Contains("*", StringComparer.Ordinal))
+        {
+            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        }
+        else
+        {
+            policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod();
+        }
+    });
 });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -136,5 +143,33 @@ if (seedOnStartup)
 }
 
 app.Run();
+
+/**
+ * Resolves CORS origins from array config or a comma-separated string.
+ * @param configuration Application configuration.
+ */
+static string[] ResolveCorsOrigins(IConfiguration configuration)
+{
+    var fromArray = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+        ?.Where(static origin => !string.IsNullOrWhiteSpace(origin))
+        .Select(static origin => origin.Trim().TrimEnd('/'))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+    if (fromArray is { Length: > 0 })
+    {
+        return fromArray;
+    }
+
+    var csv = configuration["Cors:AllowedOriginsCsv"];
+    if (!string.IsNullOrWhiteSpace(csv))
+    {
+        return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(static origin => origin.TrimEnd('/'))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    return ["http://localhost:4200"];
+}
 
 public partial class Program;
