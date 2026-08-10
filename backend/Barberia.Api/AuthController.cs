@@ -81,8 +81,8 @@ public sealed class AuthController(
         {
             return Conflict(new ProblemDetails
             {
-                Title = "Email already registered",
-                Detail = "An account with this email address already exists.",
+                Title = "Correo ya registrado",
+                Detail = "Ya existe una cuenta con este correo electrónico.",
                 Status = StatusCodes.Status409Conflict
             });
         }
@@ -101,7 +101,12 @@ public sealed class AuthController(
                 new Dictionary<string, string[]>
                 {
                     ["identity"] = result.Errors.Select(x => x.Description).ToArray()
-                }));
+                })
+            {
+                Title = "Hay errores de validación.",
+                Detail = result.Errors.FirstOrDefault()?.Description
+                    ?? "Revisa los datos e inténtalo de nuevo."
+            });
         }
 
         await userManager.AddToRoleAsync(user, Roles.Customer);
@@ -129,8 +134,8 @@ public sealed class AuthController(
         {
             return Unauthorized(new ProblemDetails
             {
-                Title = "Invalid credentials",
-                Detail = "The supplied email or password is incorrect.",
+                Title = "Credenciales inválidas",
+                Detail = "El correo o la contraseña no son correctos.",
                 Status = StatusCodes.Status401Unauthorized
             });
         }

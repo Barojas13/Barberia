@@ -70,7 +70,8 @@ public sealed class AdminController(
         {
             return Conflict(new ProblemDetails
             {
-                Title = "Email already registered",
+                Title = "Correo ya registrado",
+                Detail = "Ya existe una cuenta con este correo electrónico.",
                 Status = StatusCodes.Status409Conflict
             });
         }
@@ -89,7 +90,12 @@ public sealed class AdminController(
                 new Dictionary<string, string[]>
                 {
                     ["identity"] = identityResult.Errors.Select(x => x.Description).ToArray()
-                }));
+                })
+            {
+                Title = "Hay errores de validación.",
+                Detail = identityResult.Errors.FirstOrDefault()?.Description
+                    ?? "Revisa los datos del barbero e inténtalo de nuevo."
+            });
         }
 
         await userManager.AddToRoleAsync(user, Roles.Barber);
