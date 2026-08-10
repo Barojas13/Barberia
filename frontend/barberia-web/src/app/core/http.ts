@@ -32,8 +32,13 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
         | { title?: string; detail?: string; message?: string; errors?: Record<string, string[]> }
         | undefined;
 
+      const validationMessages = problem?.errors
+        ? Object.values(problem.errors).flat().filter(Boolean)
+        : [];
+
       const apiError: ApiError = {
         message:
+          validationMessages[0] ??
           problem?.detail ??
           problem?.title ??
           problem?.message ??

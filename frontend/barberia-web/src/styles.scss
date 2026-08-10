@@ -791,7 +791,20 @@ th { color: var(--accent); font-size: .75rem; letter-spacing: .08em; text-transf
 td select { min-width: 135px; }
 .pagination { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-top: 1rem; color: var(--muted); }
 .pagination button { padding: .5rem .8rem; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
-.inline-form { margin-bottom: 2rem; padding: 1.5rem; border: 1px solid var(--accent-muted); background: var(--surface); }
+.inline-form small {
+  display: block;
+  min-height: 1.1em;
+  color: var(--danger);
+  font-size: .78rem;
+  font-weight: 500;
+}
+.inline-form small.field-hint {
+  color: var(--muted);
+}
+.inline-form label:has(input.ng-invalid.ng-touched) input,
+.inline-form label:has(input.ng-invalid.ng-touched) textarea {
+  border-color: rgba(211, 107, 103, 0.7);
+}
 .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
 .form-grid .wide { grid-column: 1 / -1; }
 .admin-grid { grid-template-columns: repeat(2, 1fr); }

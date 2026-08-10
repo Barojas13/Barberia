@@ -1,6 +1,6 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { ApiService } from '../core/api.service';
 import {
@@ -46,7 +46,36 @@ type AdminTab = 'appointments' | 'services' | 'barbers' | 'schedules' | 'clients
 
       @if (!loading() && tab() === 'barbers') {
         <div class="panel-heading"><div><h2>Barberos</h2><p>Crea cuentas profesionales para el equipo.</p></div><button class="button primary" (click)="showBarberForm.set(true)">Nuevo barbero</button></div>
-        @if (showBarberForm()) { <form class="inline-form" [formGroup]="barberForm" (ngSubmit)="saveBarber()"><h3>Nuevo barbero</h3><div class="form-grid"><label>Nombre<input formControlName="displayName"></label><label>Correo<input type="email" formControlName="email"></label><label>Contraseña<input type="password" formControlName="password"></label><label class="wide">Biografía<textarea formControlName="bio"></textarea></label></div><div class="actions"><button class="button primary" [disabled]="saving()">Guardar</button><button type="button" class="button ghost" (click)="showBarberForm.set(false)">Cancelar</button></div></form> }
+        @if (showBarberForm()) {
+          <form class="inline-form" [formGroup]="barberForm" (ngSubmit)="saveBarber()">
+            <h3>Nuevo barbero</h3>
+            <div class="form-grid">
+              <label>Nombre
+                <input formControlName="displayName" autocomplete="name">
+                <small>{{ fieldError(barberForm, 'displayName') }}</small>
+              </label>
+              <label>Correo
+                <input type="email" formControlName="email" autocomplete="email">
+                <small>{{ fieldError(barberForm, 'email') }}</small>
+              </label>
+              <label>Contraseña
+                <input type="password" formControlName="password" autocomplete="new-password">
+                @if (fieldError(barberForm, 'password'); as passwordError) {
+                  <small>{{ passwordError }}</small>
+                } @else {
+                  <small class="field-hint">Mín. 8 caracteres, con mayúscula, minúscula, número y símbolo. Ej: Barber123!</small>
+                }
+              </label>
+              <label class="wide">Biografía
+                <textarea formControlName="bio" rows="3"></textarea>
+              </label>
+            </div>
+            <div class="actions">
+              <button class="button primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
+              <button type="button" class="button ghost" (click)="showBarberForm.set(false)">Cancelar</button>
+            </div>
+          </form>
+        }
         <div class="card-grid admin-grid">@for (item of barbers(); track item.id) { <article class="management-card"><div><h3>{{ item.displayName }}</h3><p>{{ item.bio || 'Barbero profesional' }}</p></div></article> } @empty { <div class="state">No hay barberos.</div> }</div>
       }
 
@@ -281,8 +310,11 @@ export class AdminPage {
 
   /** Creates a barber account. */
   saveBarber(): void {
+    this.error.set('');
+    this.message.set('');
     if (this.barberForm.invalid) {
       this.barberForm.markAllAsTouched();
+      this.error.set('Revisa nombre, correo y contraseña antes de guardar.');
       return;
     }
     this.saving.set(true);
@@ -290,7 +322,7 @@ export class AdminPage {
     this.api
       .createBarber({
         displayName: value.displayName.trim(),
-        email: value.email.trim().toLowerCase(),
+        email: value.email.replace(/\s+/g, '').toLowerCase(),
         password: value.password,
         bio: value.bio.trim() || undefined,
       })
@@ -304,6 +336,20 @@ export class AdminPage {
         },
         error: (e: ApiError) => this.error.set(e.message),
       });
+  }
+
+  /**
+   * Returns a validation message for an admin form control.
+   * @param form Form group.
+   * @param name Control name.
+   */
+  fieldError(form: FormGroup, name: string): string {
+    const field = form.get(name);
+    if (!field?.touched || !field.errors) return '';
+    if (field.hasError('required')) return 'Este campo es obligatorio.';
+    if (field.hasError('email')) return 'Ingresa un correo válido, sin espacios.';
+    if (field.hasError('minlength')) return 'Usa al menos 8 caracteres.';
+    return 'Revisa este dato.';
   }
 
   /** Creates a weekly schedule entry. */
