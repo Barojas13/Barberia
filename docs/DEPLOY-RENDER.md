@@ -18,7 +18,31 @@ git push -u origin main
 
 Inicia sesión con **tus** credenciales de GitHub (usuario/token personal). No uses credenciales de otra cuenta u organización.
 
-## 2. Desplegar en Render (como eventosvivos)
+## 2. Base de datos persistente (Neon Postgres, gratis)
+
+SQLite en Render Free **se borra** en cada redeploy. Usa Neon para guardar barberos, citas y horarios.
+
+1. Entra a [https://neon.tech](https://neon.tech) y crea una cuenta
+2. **Create project** → región cercana (ej. `Virginia` / US East)
+3. En el dashboard copia la connection string (**Connection string** → URI), algo como:
+
+```text
+postgresql://usuario:clave@ep-xxxx.us-east-2.aws.neon.tech/neondb?sslmode=require
+```
+
+4. En Render → **gemelli-studio-api** → **Environment**, cambia:
+
+| Key | Value |
+|---|---|
+| `ConnectionStrings__DefaultConnection` | pega la URI de Neon completa |
+
+5. Guarda y haz **Manual Deploy** de la API
+6. Con `SeedOnStartup=true` se crean admin/barbero iniciales **una vez** en Neon
+7. Los barberos y citas que crees **ya no se borran** al redeployar
+
+Local sigue usando SQLite (`Data Source=barberia.db`) sin cambios.
+
+## 3. Desplegar en Render
 
 ### A. API (Docker Web Service)
 
@@ -33,13 +57,13 @@ Inicia sesión con **tus** credenciales de GitHub (usuario/token personal). No u
 | Key | Value |
 |---|---|
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
-| `ConnectionStrings__DefaultConnection` | `Data Source=/data/barberia.db` |
+| `ConnectionStrings__DefaultConnection` | URI de Neon (ver sección 2) |
 | `Jwt__Issuer` | `Gemelli.Studio.Api` |
 | `Jwt__Audience` | `Gemelli.Studio.Web` |
 | `Jwt__Key` | genera una cadena larga aleatoria (≥ 32 caracteres) |
 | `Jwt__ExpirationMinutes` | `120` |
 | `SeedOnStartup` | `true` |
-| `Cors__AllowedOrigins__0` | URL del frontend, ej. `https://gemelli-studio-web.onrender.com` |
+| `Cors__AllowedOrigins__0` | URL del frontend, ej. `https://barberia-2n8e.onrender.com` |
 
 Copia la URL pública de la API (ej. `https://gemelli-studio-api.onrender.com`).
 
@@ -70,12 +94,12 @@ frontend/barberia-web/dist/barberia-web/browser
 
 ### C. Orden recomendado
 
-1. Despliega la API
-2. Configura `Cors__AllowedOrigins__0` con la URL del Static Site (puedes crear el Static Site primero para conocer la URL, o actualizar CORS después)
-3. Despliega/redeploy el frontend con `API_URL` apuntando a la API
-4. Si creaste el web antes que la API, haz **Manual Deploy** del web cuando la API esté lista
+1. Crea Neon y configura la connection string
+2. Despliega/redeploy la API
+3. Configura `Cors__AllowedOrigins__0` con la URL del Static Site
+4. Despliega el frontend con `API_URL` apuntando a la API
 
-## 3. Credenciales de la app (seed)
+## 4. Credenciales de la app (seed)
 
 Con `SeedOnStartup=true` se crean:
 
@@ -84,15 +108,16 @@ Con `SeedOnStartup=true` se crean:
 
 Cámbialas después del primer acceso. Son solo para desarrollo/demo.
 
-## 4. Notas del plan free
+## 5. Notas del plan free
 
 - El servicio Docker se duerme tras inactividad; la primera petición puede tardar ~30–60s
-- SQLite en `/data` **no es persistente** en free sin disco: un redeploy puede borrar citas
-- Para datos persistentes gratis más adelante: Postgres gratuito externo (Neon, etc.) cambiando solo `ConnectionStrings__DefaultConnection`
+- Neon Free también puede “pausar”; la primera query puede tardar unos segundos
+- No uses `Data Source=/data/barberia.db` en Render si quieres datos permanentes
 
-## 5. Blueprint opcional
+## 6. Blueprint opcional
 
 También puedes usar **New → Blueprint** con el archivo `render.yaml` del repo. Aun así debes completar a mano:
 
+- `ConnectionStrings__DefaultConnection` (Neon)
 - `Cors__AllowedOrigins__0`
 - `API_URL` del Static Site

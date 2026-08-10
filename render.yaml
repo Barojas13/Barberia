@@ -11,7 +11,7 @@ services:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ConnectionStrings__DefaultConnection
-        value: Data Source=/data/barberia.db
+        sync: false
       - key: Jwt__Issuer
         value: Gemelli.Studio.Api
       - key: Jwt__Audience

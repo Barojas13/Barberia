@@ -16,7 +16,16 @@ public static class DatabaseSeeder
     public static async Task SeedAsync(IServiceProvider services, CancellationToken cancellationToken = default)
     {
         var database = services.GetRequiredService<BarberiaDbContext>();
-        await database.Database.MigrateAsync(cancellationToken);
+        // SQLite keeps EF migrations locally; Postgres (Neon/Render) uses EnsureCreated
+        // because existing migrations were authored for SQLite column types.
+        if (database.Database.IsNpgsql())
+        {
+            await database.Database.EnsureCreatedAsync(cancellationToken);
+        }
+        else
+        {
+            await database.Database.MigrateAsync(cancellationToken);
+        }
 
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         foreach (var role in new[] { Roles.Admin, Roles.Barber, Roles.Customer })

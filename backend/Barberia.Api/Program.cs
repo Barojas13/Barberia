@@ -13,7 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
-builder.Services.AddDbContext<BarberiaDbContext>(options => options.UseSqlite(connectionString));
+builder.Services.AddDbContext<BarberiaDbContext>(options =>
+    DatabaseProvider.Configure(options, connectionString));
 builder.Services.AddScoped<IBarberiaRepository>(provider => provider.GetRequiredService<BarberiaDbContext>());
 builder.Services.AddScoped<IAvailabilityService, AvailabilityService>();
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
