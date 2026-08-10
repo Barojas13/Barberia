@@ -133,7 +133,7 @@ type AdminTab = 'appointments' | 'services' | 'barbers' | 'schedules' | 'clients
                   <h3>Nuevo barbero</h3>
                 </div>
               </div>
-              <div class="form-grid">
+              <div class="form-grid form-grid-3">
                 <label>Nombre
                   <input formControlName="displayName" autocomplete="name" placeholder="Ej. Julián Vargas">
                   <small>{{ fieldError(barberForm, 'displayName') }}</small>

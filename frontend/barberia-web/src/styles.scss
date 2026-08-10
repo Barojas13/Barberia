@@ -843,12 +843,19 @@ td select { min-width: 135px; }
   font-size: 1.8rem;
   font-weight: 400;
 }
+.inline-form label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: .4rem;
+}
 .inline-form small {
   display: block;
-  min-height: 1.1em;
+  min-height: 2.4em;
   color: var(--danger);
   font-size: .78rem;
   font-weight: 500;
+  line-height: 1.35;
 }
 .inline-form small.field-hint { color: var(--muted); }
 .inline-form label:has(input.ng-invalid.ng-touched) input,
@@ -858,11 +865,24 @@ td select { min-width: 135px; }
 .inline-form input,
 .inline-form select,
 .inline-form textarea {
+  width: 100%;
+  max-width: 100%;
   border-color: rgba(199, 204, 211, 0.24);
   background: #080808;
 }
-.form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem 1.1rem;
+  align-items: start;
+}
+.form-grid.form-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .form-grid .wide { grid-column: 1 / -1; }
+.barber-form .form-grid > label:not(.wide) {
+  min-height: 7.2rem;
+}
 .admin-grid { grid-template-columns: repeat(2, 1fr); }
 .management-card {
   min-height: 190px;
