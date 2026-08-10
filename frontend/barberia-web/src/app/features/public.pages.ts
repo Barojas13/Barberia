@@ -1,11 +1,28 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { ApiService } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { ApiError, Appointment, Barber, BarberService, TimeSlot } from '../core/models';
+
+interface ServiceGroup {
+  name: string;
+  items: BarberService[];
+}
+
+interface SlotGroup {
+  label: string;
+  items: TimeSlot[];
+}
+
+interface DayOption {
+  value: string;
+  weekday: string;
+  day: string;
+  month: string;
+}
 
 @Component({
   standalone: true,
@@ -187,24 +204,38 @@ export class AuthPage {
   standalone: true,
   imports: [ReactiveFormsModule, CurrencyPipe, DatePipe, RouterLink],
   template: `
-    <section class="page-header"><span class="eyebrow">Reserva en línea</span><h1>Agenda tu cita</h1><p>Sin crear cuenta: usa tu correo y cédula para identificarte.</p></section>
+    <section class="booking-hero">
+      <div class="booking-hero-inner">
+        <span class="eyebrow">Reserva en línea</span>
+        <h1>Agenda tu cita</h1>
+        <p>Sin crear cuenta. Elige servicio, barbero y horario; tu correo y cédula te identifican.</p>
+      </div>
+    </section>
     <section class="section booking-layout">
       @if (!confirmed()) {
-        <div class="steps" aria-label="Progreso de reserva">
-          @for (label of ['Servicio','Barbero','Fecha y hora','Tus datos']; track label; let i = $index) {
-            <span [class.active]="step() >= i + 1"><b>{{ i + 1 }}</b>{{ label }}</span>
+        <ol class="steps" aria-label="Progreso de reserva">
+          @for (label of stepLabels; track label; let i = $index) {
+            <li
+              class="step-item"
+              [class.active]="step() === i + 1"
+              [class.done]="step() > i + 1"
+            >
+              <b aria-hidden="true">{{ step() > i + 1 ? '✓' : i + 1 }}</b>
+              <span>{{ label }}</span>
+            </li>
           }
-        </div>
+        </ol>
       }
       @if (error()) { <div class="alert error">{{ error() }}</div> }
-      <div class="booking-card">
+      <div class="booking-card" [class.confirmed]="!!confirmed()">
         @if (confirmed(); as booking) {
-          <div class="state">
+          <div class="booking-success">
+            <div class="success-mark" aria-hidden="true">✓</div>
             <span class="eyebrow">Reserva confirmada</span>
             <h2>¡Listo, {{ booking.customerName }}!</h2>
-            <p>Tu cita quedó registrada. Guarda estos datos para consultar o cancelar después.</p>
+            <p class="booking-lead">Tu cita quedó registrada. Guarda estos datos para consultar o cancelar después.</p>
           </div>
-          <div class="summary">
+          <div class="summary elevated">
             <p><span>Servicio</span><strong>{{ booking.serviceName }}</strong></p>
             <p><span>Profesional</span><strong>{{ booking.barberName }}</strong></p>
             <p><span>Fecha y hora</span><strong>{{ booking.startUtc | date:'fullDate' }} · {{ formatSlot(booking.startUtc) }}</strong></p>
@@ -217,61 +248,130 @@ export class AuthPage {
             <button class="button ghost" type="button" (click)="reset()">Nueva reserva</button>
           </div>
         } @else if (step() === 1) {
-          <h2>Elige un servicio</h2>
-          @if (loadingCatalog()) { <div class="state"><span class="spinner"></span><p>Cargando servicios…</p></div> }
-          @else if (!services().length) { <div class="state"><p>No hay servicios disponibles.</p></div> }
-          @else {
-            <div class="choice-grid">
-              @for (service of services(); track service.id) {
-                <button type="button" class="choice" (click)="selectService(service)">
-                  <strong>{{ service.name }}</strong>
-                  <span>{{ service.durationMinutes }} min · {{ service.price | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
-                </button>
-              }
-            </div>
-          }
+          <div class="booking-step">
+            <header class="step-heading">
+              <h2>Elige un servicio</h2>
+              <p>Explora por categoría y agenda el servicio que mejor te quede.</p>
+            </header>
+            @if (loadingCatalog()) { <div class="state"><span class="spinner"></span><p>Cargando servicios…</p></div> }
+            @else if (!services().length) { <div class="state"><p>No hay servicios disponibles.</p></div> }
+            @else {
+              <div class="catalog-accordion">
+                @for (group of serviceGroups(); track group.name) {
+                  <section class="catalog-category" [class.open]="isCategoryOpen(group.name)">
+                    <button type="button" class="catalog-category-toggle" (click)="toggleCategory(group.name)" [attr.aria-expanded]="isCategoryOpen(group.name)">
+                      <span>{{ group.name }}</span>
+                      <span class="catalog-toggle-icon" aria-hidden="true">{{ isCategoryOpen(group.name) ? '−' : '+' }}</span>
+                    </button>
+                    @if (isCategoryOpen(group.name)) {
+                      <div class="catalog-grid">
+                        @for (service of group.items; track service.id; let i = $index) {
+                          <article class="catalog-card">
+                            <div class="catalog-card-main">
+                              <h3>{{ i + 1 }}. {{ service.name }}</h3>
+                              <p class="catalog-duration">{{ formatDuration(service.durationMinutes) }}</p>
+                              <p class="catalog-price">{{ service.price | currency:'COP':'symbol-narrow':'1.0-0' }}</p>
+                              @if (service.description) {
+                                <p class="catalog-desc" [class.expanded]="expandedInfo() === service.id">{{ service.description }}</p>
+                                <button type="button" class="text-link" (click)="toggleInfo(service.id)">
+                                  {{ expandedInfo() === service.id ? 'Ver menos' : 'Más información' }}
+                                </button>
+                              }
+                            </div>
+                            <button type="button" class="button primary catalog-cta" (click)="selectService(service)">Agendar servicio</button>
+                          </article>
+                        }
+                      </div>
+                    }
+                  </section>
+                }
+              </div>
+            }
+          </div>
         } @else if (step() === 2) {
-          <button class="back" type="button" (click)="step.set(1)">← Volver</button>
-          <h2>Elige tu barbero</h2>
-          @if (loadingCatalog()) { <div class="state"><span class="spinner"></span></div> }
-          @else {
-            <div class="choice-grid">
-              @for (barber of barbers(); track barber.id) {
-                <button type="button" class="choice" (click)="selectBarber(barber)">
-                  <strong>{{ barber.displayName }}</strong>
-                  <span>{{ barber.bio || 'Barbero profesional' }}</span>
+          <div class="booking-step">
+            <button class="back" type="button" (click)="step.set(1)">← Volver a servicios</button>
+            <header class="step-heading">
+              <h2>Elige tu barbero</h2>
+              <p>Tu profesional para {{ selectedService()?.name }}.</p>
+            </header>
+            @if (loadingCatalog()) { <div class="state"><span class="spinner"></span><p>Cargando barberos…</p></div> }
+            @else {
+              <div class="choice-grid">
+                @for (barber of barbers(); track barber.id) {
+                  <button type="button" class="choice barber-choice" (click)="selectBarber(barber)">
+                    <span class="choice-avatar" aria-hidden="true">{{ barberInitials(barber.displayName) }}</span>
+                    <span class="choice-body">
+                      <strong>{{ barber.displayName }}</strong>
+                      <em>{{ barber.bio || 'Barbero profesional · técnica precisa' }}</em>
+                    </span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        } @else if (step() === 3) {
+          <div class="booking-step">
+            <button class="back" type="button" (click)="step.set(2)">← Volver a barberos</button>
+            <header class="step-heading">
+              <h2>Fecha y hora</h2>
+              <p>Elige el día y luego un horario con {{ selectedBarber()?.displayName }}.</p>
+            </header>
+            <div class="day-picker" role="listbox" aria-label="Días disponibles">
+              @for (day of dayOptions; track day.value) {
+                <button
+                  type="button"
+                  class="day-chip"
+                  role="option"
+                  [class.active]="dateControl.value === day.value"
+                  [attr.aria-selected]="dateControl.value === day.value"
+                  (click)="pickDay(day.value)"
+                >
+                  <span class="day-weekday">{{ day.weekday }}</span>
+                  <strong>{{ day.day }}</strong>
+                  <span class="day-month">{{ day.month }}</span>
                 </button>
               }
             </div>
-          }
-        } @else if (step() === 3) {
-          <button class="back" type="button" (click)="step.set(2)">← Volver</button>
-          <h2>Fecha y hora</h2>
-          <label>Fecha<input type="date" [min]="today" [formControl]="dateControl"></label>
-          @if (slotsLoading()) { <div class="state"><span class="spinner"></span><p>Buscando horarios…</p></div> }
-          @else if (dateControl.value && !slots().length) { <div class="state"><p>No hay horarios disponibles para esta fecha. Prueba otro día.</p></div> }
-          <div class="slots">
-            @for (slot of slots(); track slot.startUtc) {
-              <button type="button" [class.active-slot]="selectedSlot()?.startUtc === slot.startUtc" (click)="selectSlot(slot)">{{ formatSlot(slot.startUtc) }}</button>
+            <label class="date-field sr-only">Fecha<input type="date" [min]="today" [formControl]="dateControl"></label>
+            @if (slotsLoading()) { <div class="state"><span class="spinner"></span><p>Buscando horarios…</p></div> }
+            @else if (dateControl.value && !slots().length) {
+              <div class="state soft"><p>No hay horarios para esta fecha. Prueba otro día.</p></div>
+            } @else if (slotGroups().length) {
+              @for (group of slotGroups(); track group.label) {
+                <div class="slot-group">
+                  <p class="slots-label">{{ group.label }}</p>
+                  <div class="slots">
+                    @for (slot of group.items; track slot.startUtc) {
+                      <button type="button" [class.active-slot]="selectedSlot()?.startUtc === slot.startUtc" (click)="selectSlot(slot)">{{ formatSlot(slot.startUtc) }}</button>
+                    }
+                  </div>
+                </div>
+              }
             }
           </div>
         } @else {
-          <button class="back" type="button" (click)="step.set(3)">← Volver</button>
-          <h2>Confirma con tus datos</h2>
-          <div class="summary">
-            <p><span>Servicio</span><strong>{{ selectedService()?.name }}</strong></p>
-            <p><span>Profesional</span><strong>{{ selectedBarber()?.displayName }}</strong></p>
-            <p><span>Fecha</span><strong>{{ dateControl.value | date:'fullDate' }}</strong></p>
-            <p><span>Hora</span><strong>{{ selectedSlot() ? formatSlot(selectedSlot()!.startUtc) : '' }}</strong></p>
+          <div class="booking-step">
+            <button class="back" type="button" (click)="step.set(3)">← Volver a fecha</button>
+            <header class="step-heading">
+              <h2>Confirma con tus datos</h2>
+              <p>Usa el mismo correo y cédula para consultar la cita después.</p>
+            </header>
+            <div class="summary elevated">
+              <p><span>Servicio</span><strong>{{ selectedService()?.name }}</strong></p>
+              <p><span>Profesional</span><strong>{{ selectedBarber()?.displayName }}</strong></p>
+              <p><span>Fecha</span><strong>{{ dateControl.value | date:'fullDate' }}</strong></p>
+              <p><span>Hora</span><strong>{{ selectedSlot() ? formatSlot(selectedSlot()!.startUtc) : '' }}</strong></p>
+            </div>
+            <form class="guest-form" [formGroup]="guestForm" (ngSubmit)="confirm()" novalidate>
+              <label>Nombre completo<input formControlName="fullName" autocomplete="name"><small>{{ fieldError('fullName') }}</small></label>
+              <label>Correo electrónico<input type="email" formControlName="email" autocomplete="email"><small>{{ fieldError('email') }}</small></label>
+              <label>Número de cédula<input formControlName="documentNumber" inputmode="numeric" autocomplete="off"><small>{{ fieldError('documentNumber') }}</small></label>
+              <label>Teléfono (opcional)<input formControlName="phone" autocomplete="tel" inputmode="tel"></label>
+              <label class="wide">Notas (opcional)<textarea rows="3" formControlName="notes" maxlength="300"></textarea></label>
+              <button class="button primary full" [disabled]="saving()">{{ saving() ? 'Confirmando…' : 'Confirmar cita' }}</button>
+            </form>
           </div>
-          <form [formGroup]="guestForm" (ngSubmit)="confirm()" novalidate>
-            <label>Nombre completo<input formControlName="fullName" autocomplete="name"><small>{{ fieldError('fullName') }}</small></label>
-            <label>Correo electrónico<input type="email" formControlName="email" autocomplete="email"><small>{{ fieldError('email') }}</small></label>
-            <label>Número de cédula<input formControlName="documentNumber" inputmode="numeric" autocomplete="off"><small>{{ fieldError('documentNumber') }}</small></label>
-            <label>Teléfono (opcional)<input formControlName="phone" autocomplete="tel" inputmode="tel"></label>
-            <label>Notas (opcional)<textarea rows="3" formControlName="notes" maxlength="300"></textarea></label>
-            <button class="button primary full" [disabled]="saving()">{{ saving() ? 'Confirmando…' : 'Confirmar cita' }}</button>
-          </form>
         }
       </div>
     </section>
@@ -279,6 +379,7 @@ export class AuthPage {
 })
 export class BookingPage {
   private readonly api = inject(ApiService);
+  readonly stepLabels = ['Servicio', 'Barbero', 'Fecha y hora', 'Tus datos'];
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
   readonly step = signal(1);
@@ -293,6 +394,8 @@ export class BookingPage {
   readonly slotsLoading = signal(false);
   readonly saving = signal(false);
   readonly error = signal('');
+  readonly openCategories = signal<Record<string, boolean>>({});
+  readonly expandedInfo = signal<string | null>(null);
   readonly dateControl = this.fb.nonNullable.control('');
   readonly guestForm = this.fb.nonNullable.group({
     fullName: ['', [Validators.required, Validators.minLength(2)]],
@@ -302,13 +405,44 @@ export class BookingPage {
     notes: [''],
   });
   readonly today = new Date().toISOString().slice(0, 10);
+  readonly dayOptions = this.buildDayOptions(14);
+  readonly serviceGroups = computed<ServiceGroup[]>(() => {
+    const order = ['Servicios de corte', 'Combos', 'Otros Servicios'];
+    const buckets = new Map<string, BarberService[]>(order.map((name) => [name, []]));
+    for (const service of this.services()) {
+      const category = this.serviceCategory(service);
+      buckets.get(category)!.push(service);
+    }
+    return order
+      .map((name) => ({ name, items: buckets.get(name) ?? [] }))
+      .filter((group) => group.items.length > 0);
+  });
+  readonly slotGroups = computed<SlotGroup[]>(() => {
+    const morning: TimeSlot[] = [];
+    const afternoon: TimeSlot[] = [];
+    const evening: TimeSlot[] = [];
+    for (const slot of this.slots()) {
+      const hour = new Date(slot.startUtc).getHours();
+      if (hour < 12) morning.push(slot);
+      else if (hour < 17) afternoon.push(slot);
+      else evening.push(slot);
+    }
+    return [
+      { label: 'Mañana', items: morning },
+      { label: 'Tarde', items: afternoon },
+      { label: 'Noche', items: evening },
+    ].filter((group) => group.items.length > 0);
+  });
 
   constructor() {
     this.api.getServices().pipe(finalize(() => this.loadingCatalog.set(false))).subscribe({
       next: (items) => {
-        this.services.set(items.filter((item) => item.isActive));
+        const active = items.filter((item) => item.isActive);
+        this.services.set(active);
+        const firstCategory = this.serviceCategory(active[0] ?? { name: '' } as BarberService);
+        if (active.length) this.openCategories.set({ [firstCategory]: true });
         const id = this.route.snapshot.queryParamMap.get('serviceId');
-        const selected = items.find((item) => item.id === id);
+        const selected = active.find((item) => item.id === id);
         if (selected) this.selectService(selected);
       },
       error: (e: ApiError) => this.error.set(e.message),
@@ -359,6 +493,38 @@ export class BookingPage {
     this.step.set(4);
   }
 
+  /**
+   * Selects a day from the visual day picker.
+   * @param value ISO date string (yyyy-MM-dd).
+   */
+  pickDay(value: string): void {
+    this.dateControl.setValue(value);
+  }
+
+  /**
+   * Toggles an accordion service category.
+   * @param name Category name.
+   */
+  toggleCategory(name: string): void {
+    this.openCategories.update((state) => ({ ...state, [name]: !state[name] }));
+  }
+
+  /**
+   * Returns whether a category accordion is expanded.
+   * @param name Category name.
+   */
+  isCategoryOpen(name: string): boolean {
+    return !!this.openCategories()[name];
+  }
+
+  /**
+   * Expands or collapses the full service description.
+   * @param serviceId Service identifier.
+   */
+  toggleInfo(serviceId: string): void {
+    this.expandedInfo.update((current) => (current === serviceId ? null : serviceId));
+  }
+
   /** Loads available slots for the current selection. */
   loadSlots(): void {
     const barber = this.selectedBarber();
@@ -378,11 +544,69 @@ export class BookingPage {
   }
 
   /**
-   * Formats a UTC instant as a local time string.
+   * Formats a UTC instant as a compact 24-hour local time.
    * @param value ISO UTC timestamp.
    */
   formatSlot(value: string): string {
-    return new Date(value).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    return new Date(value).toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  }
+
+  /**
+   * Formats service duration for catalog cards.
+   * @param minutes Duration in minutes.
+   */
+  formatDuration(minutes: number): string {
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    if (!rest) return hours === 1 ? '1 hr' : `${hours} hrs`;
+    return `${hours} h ${rest} min`;
+  }
+
+  /**
+   * Builds short initials for a barber avatar.
+   * @param name Barber display name.
+   */
+  barberInitials(name: string): string {
+    return name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('');
+  }
+
+  /**
+   * Maps a service into a catalog category inspired by salon booking UX.
+   * @param service Service to categorize.
+   */
+  serviceCategory(service: BarberService): string {
+    const name = service.name.toLowerCase();
+    if (
+      name.includes('combo') ||
+      name.includes(' and ') ||
+      name.includes(' y ') ||
+      name.includes('+') ||
+      (name.includes('haircut') && name.includes('beard')) ||
+      (name.includes('corte') && name.includes('barba'))
+    ) {
+      return 'Combos';
+    }
+    if (
+      name.includes('beard') ||
+      name.includes('barba') ||
+      name.includes('ceja') ||
+      name.includes('tratamiento') ||
+      name.includes('color') ||
+      name.includes('afeitado')
+    ) {
+      return 'Otros Servicios';
+    }
+    return 'Servicios de corte';
   }
 
   /**
@@ -438,8 +662,32 @@ export class BookingPage {
     this.selectedBarber.set(null);
     this.selectedSlot.set(null);
     this.slots.set([]);
+    this.expandedInfo.set(null);
     this.dateControl.setValue('');
     this.guestForm.reset({ fullName: '', email: '', documentNumber: '', phone: '', notes: '' });
     this.error.set('');
+  }
+
+  /**
+   * Builds selectable day chips for the next N days.
+   * @param count Number of upcoming days.
+   */
+  private buildDayOptions(count: number): DayOption[] {
+    const formatterWeekday = new Intl.DateTimeFormat('es-CO', { weekday: 'short' });
+    const formatterMonth = new Intl.DateTimeFormat('es-CO', { month: 'short' });
+    const options: DayOption[] = [];
+    const base = new Date();
+    base.setHours(12, 0, 0, 0);
+    for (let i = 0; i < count; i++) {
+      const date = new Date(base);
+      date.setDate(base.getDate() + i);
+      options.push({
+        value: date.toISOString().slice(0, 10),
+        weekday: formatterWeekday.format(date).replace('.', ''),
+        day: String(date.getDate()).padStart(2, '0'),
+        month: formatterMonth.format(date).replace('.', ''),
+      });
+    }
+    return options;
   }
 }

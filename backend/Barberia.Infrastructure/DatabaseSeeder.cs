@@ -61,24 +61,24 @@ public static class DatabaseSeeder
             database.BarberServices.AddRange(
                 new BarberService
                 {
-                    Name = "Classic Haircut",
-                    Description = "Classic haircut and styling.",
+                    Name = "Corte clásico (asesoría gratis)",
+                    Description = "Corte según tu rostro, tipo de cabello, perfil y estilo de vida. Incluye asesoría de imagen.",
+                    DurationMinutes = 45,
+                    Price = 50000m
+                },
+                new BarberService
+                {
+                    Name = "Perfilado de barba",
+                    Description = "Definición y perfilado de barba con detalle de estudio para un acabado limpio.",
                     DurationMinutes = 30,
-                    Price = 25m
+                    Price = 30000m
                 },
                 new BarberService
                 {
-                    Name = "Beard Trim",
-                    Description = "Beard shaping and trim.",
-                    DurationMinutes = 20,
-                    Price = 15m
-                },
-                new BarberService
-                {
-                    Name = "Haircut and Beard",
-                    Description = "Complete haircut and beard service.",
-                    DurationMinutes = 50,
-                    Price = 35m
+                    Name = "Combo corte + barba",
+                    Description = "Experiencia completa: corte de cabello y barba con asesoría incluida.",
+                    DurationMinutes = 70,
+                    Price = 75000m
                 });
         }
 

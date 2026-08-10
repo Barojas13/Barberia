@@ -12,9 +12,19 @@ const LOOKUP_KEY = 'gemelli_booking_lookup';
   standalone: true,
   imports: [DatePipe, RouterLink, ReactiveFormsModule],
   template: `
-    <section class="page-header compact"><span class="eyebrow">Tus reservas</span><h1>Mis citas</h1><p>Consulta con el mismo correo y cédula usados al reservar.</p></section>
-    <section class="section dashboard">
-      <form class="inline-form" [formGroup]="lookupForm" (ngSubmit)="load()">
+    <section class="booking-hero compact">
+      <div class="booking-hero-inner">
+        <span class="eyebrow">Tus reservas</span>
+        <h1>Mis citas</h1>
+        <p>Consulta con el mismo correo y cédula usados al reservar.</p>
+      </div>
+    </section>
+    <section class="section dashboard booking-dashboard">
+      <form class="lookup-panel" [formGroup]="lookupForm" (ngSubmit)="load()">
+        <div class="lookup-intro">
+          <h2>Buscar reservas</h2>
+          <p>Introduce tus datos de identificación para ver próximas citas e historial.</p>
+        </div>
         <div class="form-grid">
           <label>Correo<input type="email" formControlName="email" autocomplete="email"></label>
           <label>Cédula<input formControlName="documentNumber" inputmode="numeric"></label>
@@ -29,7 +39,11 @@ const LOOKUP_KEY = 'gemelli_booking_lookup';
       @if (loaded() && !loading()) {
         <div class="dashboard-heading"><div><h2>Próximas reservas</h2><p>Citas activas asociadas a tu correo.</p></div></div>
         @if (!upcoming().length) {
-          <div class="state"><h3>No tienes próximas citas</h3><p>Agenda una nueva visita cuando quieras.</p><a class="button ghost" routerLink="/reservar">Reservar ahora</a></div>
+          <div class="state soft empty-panel">
+            <h3>No tienes próximas citas</h3>
+            <p>Agenda una nueva visita cuando quieras.</p>
+            <a class="button ghost" routerLink="/reservar">Reservar ahora</a>
+          </div>
         } @else {
           <div class="appointment-list">
             @for (appointment of upcoming(); track appointment.id) {
