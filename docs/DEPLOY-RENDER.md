@@ -64,6 +64,7 @@ frontend/barberia-web/dist/barberia-web/browser
 | Key | Value |
 |---|---|
 | `API_URL` | `https://gemelli-studio-api.onrender.com` |
+| `NODE_VERSION` | `24.15.0` |
 
 6. Rewrite SPA: `/*` → `/index.html`
 
