@@ -42,7 +42,6 @@ public static class DatabaseProvider
         var builder = new NpgsqlConnectionStringBuilder(value)
         {
             SslMode = SslMode.Require,
-            TrustServerCertificate = true,
             Timeout = 60,
             CommandTimeout = 60,
             KeepAlive = 30,
