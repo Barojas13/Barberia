@@ -30,11 +30,19 @@ SQLite en Render Free **se borra** en cada redeploy. Usa Neon para guardar barbe
 postgresql://usuario:clave@ep-xxxx.us-east-2.aws.neon.tech/neondb?sslmode=require
 ```
 
-4. En Render → **gemelli-studio-api** → **Environment**, cambia:
+4. En Render → **gemelli-studio-api** → **Environment**, usa **formato con punto y coma** (recomendado, evita el bug del `=`):
 
-| Key | Value |
-|---|---|
-| `ConnectionStrings__DefaultConnection` | pega la URI de Neon completa |
+```text
+Host=ep-xxxx-pooler.c-4.us-east-2.aws.neon.tech;Database=neondb;Username=neondb_owner;Password=TU_CLAVE;SSL Mode=Require
+```
+
+Si prefieres la URI, en Render pégala **entre comillas**:
+
+```text
+"postgresql://usuario:clave@ep-xxxx-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
+```
+
+> Importante: sin comillas, Render corta `sslmode=require` y deja solo `sslmode`, y la API falla.
 
 5. Guarda y haz **Manual Deploy** de la API
 6. Con `SeedOnStartup=true` se crean admin/barbero iniciales **una vez** en Neon
