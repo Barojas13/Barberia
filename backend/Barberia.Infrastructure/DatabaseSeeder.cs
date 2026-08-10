@@ -18,13 +18,23 @@ public static class DatabaseSeeder
         var database = services.GetRequiredService<BarberiaDbContext>();
         // SQLite keeps EF migrations locally; Postgres (Neon/Render) uses EnsureCreated
         // because existing migrations were authored for SQLite column types.
-        if (database.Database.IsNpgsql())
+        try
         {
-            await database.Database.EnsureCreatedAsync(cancellationToken);
+            if (database.Database.IsNpgsql())
+            {
+                await database.Database.EnsureCreatedAsync(cancellationToken);
+            }
+            else
+            {
+                await database.Database.MigrateAsync(cancellationToken);
+            }
         }
-        else
+        catch (Exception exception) when (database.Database.IsNpgsql())
         {
-            await database.Database.MigrateAsync(cancellationToken);
+            throw new InvalidOperationException(
+                "No se pudo conectar a PostgreSQL/Neon. Revisa ConnectionStrings__DefaultConnection "
+                + "(usa la URI completa con sslmode=require, sin comillas extras).",
+                exception);
         }
 
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();

@@ -17,9 +17,10 @@ RUN dotnet publish backend/Barberia.Api/Barberia.Api.csproj -c Release -o /app/p
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
-# Keep timezone data available for container hosts that rely on the system TZ DB.
+# Keep timezone data and CA certificates for Neon SSL connections.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tzdata \
+    && apt-get install -y --no-install-recommends ca-certificates tzdata \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /data

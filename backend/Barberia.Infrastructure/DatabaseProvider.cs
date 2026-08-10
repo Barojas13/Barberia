@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Barberia.Infrastructure;
 
@@ -13,7 +14,7 @@ public static class DatabaseProvider
      */
     public static bool IsPostgreSql(string connectionString)
     {
-        var value = connectionString.Trim();
+        var value = connectionString.Trim().Trim('"', '\'');
         if (value.Contains("Data Source=", StringComparison.OrdinalIgnoreCase)
             || value.Contains("Filename=", StringComparison.OrdinalIgnoreCase))
         {
@@ -27,18 +28,56 @@ public static class DatabaseProvider
     }
 
     /**
+     * Normalizes Neon/Postgres connection strings for reliable SSL in Docker.
+     * @param connectionString Raw connection string or URI.
+     */
+    public static string Normalize(string connectionString)
+    {
+        var value = connectionString.Trim().Trim('"', '\'');
+        if (!IsPostgreSql(value))
+        {
+            return value;
+        }
+
+        var builder = new NpgsqlConnectionStringBuilder(value)
+        {
+            SslMode = SslMode.Require,
+            TrustServerCertificate = true,
+            Timeout = 60,
+            CommandTimeout = 60,
+            KeepAlive = 30,
+        };
+
+        // Neon serverless works best through the pooler endpoint when available.
+        // ep-xxx.region.aws.neon.tech -> ep-xxx-pooler.region.aws.neon.tech
+        if (!string.IsNullOrWhiteSpace(builder.Host)
+            && builder.Host.Contains(".neon.tech", StringComparison.OrdinalIgnoreCase)
+            && !builder.Host.Contains("-pooler.", StringComparison.OrdinalIgnoreCase))
+        {
+            var firstDot = builder.Host.IndexOf('.');
+            if (firstDot > 0)
+            {
+                builder.Host = builder.Host.Insert(firstDot, "-pooler");
+            }
+        }
+
+        return builder.ConnectionString;
+    }
+
+    /**
      * Configures SQLite for local development or PostgreSQL for production hosts.
      * @param options EF Core options builder.
      * @param connectionString Database connection string.
      */
     public static void Configure(DbContextOptionsBuilder options, string connectionString)
     {
-        if (IsPostgreSql(connectionString))
+        var normalized = Normalize(connectionString);
+        if (IsPostgreSql(normalized))
         {
-            options.UseNpgsql(connectionString);
+            options.UseNpgsql(normalized);
             return;
         }
 
-        options.UseSqlite(connectionString);
+        options.UseSqlite(normalized);
     }
 }
