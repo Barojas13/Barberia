@@ -98,3 +98,5 @@ public sealed record CreateBarberRequest(
     [Required, MinLength(8), MaxLength(100)] string Password,
     [Required, StringLength(120, MinimumLength = 2)] string DisplayName,
     [StringLength(500)] string? Bio);
+
+public sealed record SetBarberStatusRequest(bool IsActive);

@@ -60,6 +60,36 @@ public sealed class AdminController(
         return Ok(new PagedResult<CustomerResponse>(items, page, pageSize, total));
     }
 
+    /// <summary>Lists all barbers for administration, including inactive ones.</summary>
+    [HttpGet("barbers")]
+    public async Task<ActionResult<PagedResult<BarberResponse>>> ListBarbers(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1 || pageSize is < 1 or > 100)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Paginación inválida",
+                Detail = "La página debe ser positiva y pageSize entre 1 y 100.",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        var query = database.BarberProfiles.AsNoTracking();
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(x => x.IsActive)
+            .ThenBy(x => x.DisplayName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new BarberResponse(x.Id, x.DisplayName, x.Bio, x.IsActive))
+            .ToListAsync(cancellationToken);
+
+        return Ok(new PagedResult<BarberResponse>(items, page, pageSize, total));
+    }
+
     [HttpPost("barbers")]
     public async Task<ActionResult<BarberResponse>> CreateBarber(
         CreateBarberRequest request,
@@ -109,6 +139,28 @@ public sealed class AdminController(
         await database.SaveChangesAsync(cancellationToken);
         return Created($"/api/v1/barbers/{barber.Id}",
             new BarberResponse(barber.Id, barber.DisplayName, barber.Bio, barber.IsActive));
+    }
+
+    /// <summary>Activates or deactivates a barber profile.</summary>
+    [HttpPatch("barbers/{id:guid}/status")]
+    public async Task<ActionResult<BarberResponse>> SetBarberStatus(
+        Guid id,
+        SetBarberStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        var barber = await database.BarberProfiles.FindAsync([id], cancellationToken);
+        if (barber is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Title = "Barbero no encontrado",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+
+        barber.IsActive = request.IsActive;
+        await database.SaveChangesAsync(cancellationToken);
+        return Ok(new BarberResponse(barber.Id, barber.DisplayName, barber.Bio, barber.IsActive));
     }
 
     [HttpGet("barbers/{barberId:guid}/schedules")]

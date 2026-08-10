@@ -162,15 +162,22 @@ type AdminTab = 'appointments' | 'services' | 'barbers' | 'schedules' | 'clients
           }
           <div class="card-grid admin-grid">
             @for (item of barbers(); track item.id) {
-              <article class="management-card barber-card">
+              <article class="management-card barber-card" [class.inactive]="!item.isActive">
                 <div class="barber-card-top">
                   <span class="choice-avatar" aria-hidden="true">{{ initials(item.displayName) }}</span>
                   <div>
-                    <span class="card-kicker">{{ item.isActive ? 'Activo' : 'Inactivo' }}</span>
+                    <span class="card-kicker" [class.inactive-label]="!item.isActive">{{ item.isActive ? 'Activo' : 'Inactivo' }}</span>
                     <h3>{{ item.displayName }}</h3>
                   </div>
                 </div>
                 <p>{{ item.bio || 'Barbero profesional' }}</p>
+                <div class="row-actions">
+                  @if (item.isActive) {
+                    <button type="button" class="danger-action" [disabled]="saving()" (click)="toggleBarber(item, false)">Desactivar</button>
+                  } @else {
+                    <button type="button" [disabled]="saving()" (click)="toggleBarber(item, true)">Activar</button>
+                  }
+                </div>
               </article>
             } @empty { <div class="state soft">Aún no hay barberos registrados.</div> }
           </div>
@@ -349,11 +356,11 @@ export class AdminPage {
       });
   }
 
-  /** Loads active barbers. */
+  /** Loads all barbers for administration. */
   loadBarbers(): void {
     this.begin();
     this.api
-      .getBarbers()
+      .getAdminBarbers()
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (items) => this.barbers.set(items),
@@ -361,10 +368,32 @@ export class AdminPage {
       });
   }
 
+  /**
+   * Activates or deactivates a barber.
+   * @param item Barber card.
+   * @param isActive Desired status.
+   */
+  toggleBarber(item: Barber, isActive: boolean): void {
+    const action = isActive ? 'activar' : 'desactivar';
+    if (!confirm(`¿Seguro que deseas ${action} a ${item.displayName}?`)) return;
+    this.saving.set(true);
+    this.error.set('');
+    this.api
+      .setBarberStatus(item.id, isActive)
+      .pipe(finalize(() => this.saving.set(false)))
+      .subscribe({
+        next: (updated) => {
+          this.barbers.update((all) => all.map((barber) => (barber.id === updated.id ? updated : barber)));
+          this.message.set(isActive ? 'Barbero activado.' : 'Barbero desactivado.');
+        },
+        error: (e: ApiError) => this.error.set(e.message),
+      });
+  }
+
   /** Loads schedules for the selected barber or the first available one. */
   loadSchedules(): void {
     this.begin();
-    this.api.getBarbers().subscribe({
+    this.api.getAdminBarbers().subscribe({
       next: (barbers) => {
         this.barbers.set(barbers);
         const barberId = this.scheduleForm.controls.barberId.value || barbers[0]?.id;

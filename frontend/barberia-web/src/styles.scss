@@ -922,6 +922,12 @@ td select { min-width: 135px; }
   height: 48px;
   border-radius: 2px;
 }
+.barber-card.inactive {
+  opacity: .72;
+}
+.card-kicker.inactive-label {
+  color: var(--danger);
+}
 .timeline { border-left: 1px solid var(--accent-muted); }
 .timeline-item {
   display: grid;

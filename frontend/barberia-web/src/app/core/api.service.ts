@@ -94,6 +94,26 @@ export class ApiService {
   }
 
   /**
+   * Lists all barbers for administration, including inactive ones.
+   * @param page Page number starting at 1.
+   * @param pageSize Page size.
+   */
+  getAdminBarbers(page = 1, pageSize = 100): Observable<Barber[]> {
+    return this.http
+      .get<Page<Barber>>(`${this.baseUrl}/admin/barbers`, { params: { page, pageSize } })
+      .pipe(map((response) => response.items));
+  }
+
+  /**
+   * Activates or deactivates a barber profile.
+   * @param id Barber identifier.
+   * @param isActive Desired active flag.
+   */
+  setBarberStatus(id: string, isActive: boolean): Observable<Barber> {
+    return this.http.patch<Barber>(`${this.baseUrl}/admin/barbers/${id}/status`, { isActive });
+  }
+
+  /**
    * Returns available UTC slots for a barber, service, and date.
    * @param barberId Barber identifier.
    * @param serviceId Service identifier.
