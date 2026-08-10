@@ -43,8 +43,9 @@ public sealed class AvailabilityService(BarberiaDbContext database) : IAvailabil
             .OrderBy(x => x.StartTime)
             .ToListAsync(cancellationToken);
 
-        var dayStart = DateTime.SpecifyKind(date.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
-        var dayEnd = dayStart.AddDays(1);
+        // Weekly hours are wall-clock times in Colombia; convert the local day to UTC bounds.
+        var dayStart = StudioTimeZone.ToUtc(date, TimeOnly.MinValue);
+        var dayEnd = StudioTimeZone.ToUtc(date.AddDays(1), TimeOnly.MinValue);
         var blocks = await database.Blocks.AsNoTracking()
             .Where(x => x.BarberId == barberId && x.StartUtc < dayEnd && x.EndUtc > dayStart)
             .Select(x => new TimeRange(x.StartUtc, x.EndUtc))
@@ -58,15 +59,15 @@ public sealed class AvailabilityService(BarberiaDbContext database) : IAvailabil
             .ToListAsync(cancellationToken);
 
         // Slot length and spacing both follow the selected service duration
-        // (e.g. a 60-minute cut offers 09:00, 10:00, 11:00).
+        // (e.g. a 60-minute cut offers 09:00, 10:00, 11:00 local).
         var duration = TimeSpan.FromMinutes(service.DurationMinutes);
         var now = DateTime.UtcNow;
         var slots = new List<TimeRange>();
 
         foreach (var schedule in schedules)
         {
-            var cursor = DateTime.SpecifyKind(date.ToDateTime(schedule.StartTime), DateTimeKind.Utc);
-            var scheduleEnd = DateTime.SpecifyKind(date.ToDateTime(schedule.EndTime), DateTimeKind.Utc);
+            var cursor = StudioTimeZone.ToUtc(date, schedule.StartTime);
+            var scheduleEnd = StudioTimeZone.ToUtc(date, schedule.EndTime);
             while (cursor + duration <= scheduleEnd)
             {
                 var end = cursor + duration;
@@ -218,7 +219,7 @@ public sealed class AppointmentService(
         try
         {
             var slots = await availabilityService.GetAvailableSlotsAsync(
-                barberId, serviceId, DateOnly.FromDateTime(startUtc), cancellationToken);
+                barberId, serviceId, StudioTimeZone.ToLocalDate(startUtc), cancellationToken);
             var selectedSlot = slots.SingleOrDefault(x => x.StartUtc == startUtc)
                 ?? throw new BusinessRuleException("The selected time is not available.");
 

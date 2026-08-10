@@ -71,7 +71,7 @@ public sealed class SchedulingRulesTests : IAsyncLifetime
             StartTime = new TimeOnly(9, 0),
             EndTime = new TimeOnly(11, 0)
         });
-        var nine = DateTime.SpecifyKind(date.ToDateTime(new TimeOnly(9, 0)), DateTimeKind.Utc);
+        var nine = StudioTimeZone.ToUtc(date, new TimeOnly(9, 0));
         _database.Blocks.Add(new ScheduleBlock
         {
             Barber = barber,
@@ -113,11 +113,38 @@ public sealed class SchedulingRulesTests : IAsyncLifetime
         await _database.SaveChangesAsync();
 
         var slots = await _service.GetAvailableSlotsAsync(barber.Id, service.Id, date);
-        var starts = slots.Select(x => x.StartUtc.TimeOfDay).ToArray();
+        var expected = new[]
+        {
+            StudioTimeZone.ToUtc(date, new TimeOnly(9, 0)),
+            StudioTimeZone.ToUtc(date, new TimeOnly(10, 0)),
+            StudioTimeZone.ToUtc(date, new TimeOnly(11, 0)),
+        };
 
-        Assert.Equal(
-            [new TimeSpan(9, 0, 0), new TimeSpan(10, 0, 0), new TimeSpan(11, 0, 0)],
-            starts);
+        Assert.Equal(expected, slots.Select(x => x.StartUtc).ToArray());
         Assert.All(slots, slot => Assert.Equal(TimeSpan.FromHours(1), slot.EndUtc - slot.StartUtc));
+    }
+
+    [Fact]
+    public async Task GetAvailableSlots_UsesColombiaLocalBusinessHours()
+    {
+        var date = new DateOnly(2030, 3, 12); // Tuesday
+        var barber = new BarberProfile { UserId = "barber-3", DisplayName = "Julian" };
+        var service = new BarberService { Name = "Combo", DurationMinutes = 90, Price = 75000 };
+        _database.AddRange(barber, service);
+        _database.Schedules.Add(new WeeklySchedule
+        {
+            Barber = barber,
+            DayOfWeek = DayOfWeek.Tuesday,
+            StartTime = new TimeOnly(8, 0),
+            EndTime = new TimeOnly(17, 0)
+        });
+        await _database.SaveChangesAsync();
+
+        var slots = await _service.GetAvailableSlotsAsync(barber.Id, service.Id, date);
+        var firstLocal = TimeZoneInfo.ConvertTimeFromUtc(slots[0].StartUtc, StudioTimeZone.Bogota);
+
+        Assert.Equal(new TimeOnly(8, 0), TimeOnly.FromDateTime(firstLocal));
+        Assert.Equal(StudioTimeZone.ToUtc(date, new TimeOnly(8, 0)), slots[0].StartUtc);
+        Assert.DoesNotContain(slots, x => x.StartUtc == DateTime.SpecifyKind(date.ToDateTime(new TimeOnly(8, 0)), DateTimeKind.Utc));
     }
 }
