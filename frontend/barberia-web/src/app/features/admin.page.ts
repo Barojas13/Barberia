@@ -20,74 +20,225 @@ type AdminTab = 'appointments' | 'services' | 'barbers' | 'schedules' | 'clients
   standalone: true,
   imports: [ReactiveFormsModule, CurrencyPipe, DatePipe],
   template: `
-    <section class="page-header compact"><span class="eyebrow">Gestión</span><h1>Panel administrativo</h1></section>
+    <section class="page-header compact admin-hero">
+      <span class="eyebrow">Gestión</span>
+      <h1>Panel administrativo</h1>
+      <p>Controla citas, equipo, servicios y horarios del estudio.</p>
+    </section>
     <section class="admin-shell">
       <nav class="tabs" aria-label="Secciones administrativas">
-        @for (item of tabs; track item.id) { <button type="button" [class.active]="tab() === item.id" (click)="tab.set(item.id); loadTab()">{{ item.label }}</button> }
+        @for (item of tabs; track item.id) {
+          <button type="button" [class.active]="tab() === item.id" (click)="tab.set(item.id); loadTab()">{{ item.label }}</button>
+        }
       </nav>
       @if (message()) { <div class="alert success">{{ message() }}</div> }
       @if (error()) { <div class="alert error">{{ error() }}</div> }
       @if (loading()) { <div class="state"><span class="spinner"></span><p>Cargando información…</p></div> }
 
       @if (!loading() && tab() === 'appointments') {
-        <div class="panel-heading"><div><h2>Citas</h2><p>Consulta y actualiza las reservas.</p></div>
-          <div class="filters"><input type="date" [formControl]="filters.controls.from"><select [formControl]="filters.controls.status"><option value="">Todos los estados</option><option value="Pending">Pendientes</option><option value="Confirmed">Confirmadas</option><option value="Completed">Completadas</option><option value="Cancelled">Canceladas</option></select><button class="button ghost" (click)="loadAppointments()">Filtrar</button></div>
+        <div class="admin-panel">
+          <div class="panel-heading">
+            <div><h2>Citas</h2><p>Consulta y actualiza las reservas.</p></div>
+            <div class="filters">
+              <input type="date" [formControl]="filters.controls.from">
+              <select [formControl]="filters.controls.status">
+                <option value="">Todos los estados</option>
+                <option value="Pending">Pendientes</option>
+                <option value="Confirmed">Confirmadas</option>
+                <option value="Completed">Completadas</option>
+                <option value="Cancelled">Canceladas</option>
+              </select>
+              <button class="button ghost" (click)="loadAppointments()">Filtrar</button>
+            </div>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Barbero</th><th>Estado</th></tr></thead><tbody>
+            @for (item of appointments(); track item.id) {
+              <tr>
+                <td>{{ item.startUtc | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>{{ item.customerName }}</td>
+                <td>{{ item.serviceName }}</td>
+                <td>{{ item.barberName }}</td>
+                <td>
+                  <select [value]="item.status" (change)="updateStatus(item, $any($event.target).value)">
+                    <option value="Pending">Pendiente</option>
+                    <option value="Confirmed">Confirmada</option>
+                    <option value="Completed">Completada</option>
+                    <option value="Cancelled">Cancelada</option>
+                  </select>
+                </td>
+              </tr>
+            }
+          </tbody></table></div>
+          <div class="pagination">
+            <button [disabled]="page() <= 1" (click)="changePage(page() - 1)">Anterior</button>
+            <span>Página {{ page() }} de {{ totalPages() }}</span>
+            <button [disabled]="page() >= totalPages()" (click)="changePage(page() + 1)">Siguiente</button>
+          </div>
         </div>
-        <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Barbero</th><th>Estado</th></tr></thead><tbody>
-          @for (item of appointments(); track item.id) { <tr><td>{{ item.startUtc | date:'dd/MM/yyyy HH:mm' }}</td><td>{{ item.customerName }}</td><td>{{ item.serviceName }}</td><td>{{ item.barberName }}</td><td><select [value]="item.status" (change)="updateStatus(item, $any($event.target).value)"><option value="Pending">Pendiente</option><option value="Confirmed">Confirmada</option><option value="Completed">Completada</option><option value="Cancelled">Cancelada</option></select></td></tr> }
-        </tbody></table></div><div class="pagination"><button [disabled]="page() <= 1" (click)="changePage(page() - 1)">Anterior</button><span>Página {{ page() }} de {{ totalPages() }}</span><button [disabled]="page() >= totalPages()" (click)="changePage(page() + 1)">Siguiente</button></div>
       }
 
       @if (!loading() && tab() === 'services') {
-        <div class="panel-heading"><div><h2>Servicios</h2><p>Administra el catálogo y sus precios.</p></div><button class="button primary" (click)="editService()">Nuevo servicio</button></div>
-        @if (showServiceForm()) { <form class="inline-form" [formGroup]="serviceForm" (ngSubmit)="saveService()"><h3>{{ editingServiceId() ? 'Editar' : 'Nuevo' }} servicio</h3><div class="form-grid"><label>Nombre<input formControlName="name"></label><label>Precio<input type="number" min="0" formControlName="price"></label><label>Duración (min)<input type="number" min="5" step="5" formControlName="durationMinutes"></label><label class="wide">Descripción<textarea formControlName="description"></textarea></label></div><div class="actions"><button class="button primary" [disabled]="saving()">Guardar</button><button type="button" class="button ghost" (click)="showServiceForm.set(false)">Cancelar</button></div></form> }
-        <div class="card-grid admin-grid">@for (item of services(); track item.id) { <article class="management-card"><div><h3>{{ item.name }}</h3><p>{{ item.description }}</p><strong>{{ item.price | currency:'COP':'symbol-narrow':'1.0-0' }} · {{ item.durationMinutes }} min</strong></div><div class="row-actions"><button (click)="editService(item)">Editar</button><button class="danger-action" (click)="deleteService(item)">Eliminar</button></div></article> } @empty { <div class="state">No hay servicios.</div> }</div>
+        <div class="admin-panel">
+          <div class="panel-heading">
+            <div><h2>Servicios</h2><p>Administra el catálogo y sus precios.</p></div>
+            <button class="button primary" type="button" (click)="editService()">Nuevo servicio</button>
+          </div>
+          @if (showServiceForm()) {
+            <form class="inline-form" [formGroup]="serviceForm" (ngSubmit)="saveService()">
+              <h3>{{ editingServiceId() ? 'Editar' : 'Nuevo' }} servicio</h3>
+              <div class="form-grid">
+                <label>Nombre<input formControlName="name"></label>
+                <label>Precio<input type="number" min="0" formControlName="price"></label>
+                <label>Duración (min)<input type="number" min="5" step="5" formControlName="durationMinutes"></label>
+                <label class="wide">Descripción<textarea formControlName="description"></textarea></label>
+              </div>
+              <div class="actions">
+                <button class="button primary" type="submit" [disabled]="saving()">Guardar</button>
+                <button type="button" class="button ghost" (click)="showServiceForm.set(false)">Cancelar</button>
+              </div>
+            </form>
+          }
+          <div class="card-grid admin-grid">
+            @for (item of services(); track item.id) {
+              <article class="management-card">
+                <div>
+                  <span class="card-kicker">Servicio</span>
+                  <h3>{{ item.name }}</h3>
+                  <p>{{ item.description || 'Sin descripción.' }}</p>
+                  <strong>{{ item.price | currency:'COP':'symbol-narrow':'1.0-0' }} · {{ item.durationMinutes }} min</strong>
+                </div>
+                <div class="row-actions">
+                  <button type="button" (click)="editService(item)">Editar</button>
+                  <button type="button" class="danger-action" (click)="deleteService(item)">Eliminar</button>
+                </div>
+              </article>
+            } @empty { <div class="state soft">No hay servicios.</div> }
+          </div>
+        </div>
       }
 
       @if (!loading() && tab() === 'barbers') {
-        <div class="panel-heading"><div><h2>Barberos</h2><p>Crea cuentas profesionales para el equipo.</p></div><button class="button primary" (click)="showBarberForm.set(true)">Nuevo barbero</button></div>
-        @if (showBarberForm()) {
-          <form class="inline-form" [formGroup]="barberForm" (ngSubmit)="saveBarber()">
-            <h3>Nuevo barbero</h3>
-            <div class="form-grid">
-              <label>Nombre
-                <input formControlName="displayName" autocomplete="name">
-                <small>{{ fieldError(barberForm, 'displayName') }}</small>
-              </label>
-              <label>Correo
-                <input type="email" formControlName="email" autocomplete="email">
-                <small>{{ fieldError(barberForm, 'email') }}</small>
-              </label>
-              <label>Contraseña
-                <input type="password" formControlName="password" autocomplete="new-password">
-                @if (fieldError(barberForm, 'password'); as passwordError) {
-                  <small>{{ passwordError }}</small>
-                } @else {
-                  <small class="field-hint">Mín. 8 caracteres, con mayúscula, minúscula, número y símbolo. Ej: Barber123!</small>
-                }
-              </label>
-              <label class="wide">Biografía
-                <textarea formControlName="bio" rows="3"></textarea>
-              </label>
-            </div>
-            <div class="actions">
-              <button class="button primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
-              <button type="button" class="button ghost" (click)="showBarberForm.set(false)">Cancelar</button>
-            </div>
-          </form>
-        }
-        <div class="card-grid admin-grid">@for (item of barbers(); track item.id) { <article class="management-card"><div><h3>{{ item.displayName }}</h3><p>{{ item.bio || 'Barbero profesional' }}</p></div></article> } @empty { <div class="state">No hay barberos.</div> }</div>
+        <div class="admin-panel">
+          <div class="panel-heading">
+            <div><h2>Barberos</h2><p>Crea cuentas profesionales para el equipo.</p></div>
+            @if (!showBarberForm()) {
+              <button class="button primary" type="button" (click)="showBarberForm.set(true)">Nuevo barbero</button>
+            }
+          </div>
+          @if (showBarberForm()) {
+            <form class="inline-form barber-form" [formGroup]="barberForm" (ngSubmit)="saveBarber()">
+              <div class="form-header">
+                <div>
+                  <span class="eyebrow">Equipo</span>
+                  <h3>Nuevo barbero</h3>
+                </div>
+              </div>
+              <div class="form-grid">
+                <label>Nombre
+                  <input formControlName="displayName" autocomplete="name" placeholder="Ej. Julián Vargas">
+                  <small>{{ fieldError(barberForm, 'displayName') }}</small>
+                </label>
+                <label>Correo
+                  <input type="email" formControlName="email" autocomplete="email" placeholder="correo@ejemplo.com">
+                  <small>{{ fieldError(barberForm, 'email') }}</small>
+                </label>
+                <label>Contraseña
+                  <input type="password" formControlName="password" autocomplete="new-password" placeholder="Barber123!">
+                  @if (fieldError(barberForm, 'password'); as passwordError) {
+                    <small>{{ passwordError }}</small>
+                  } @else {
+                    <small class="field-hint">Mín. 8 caracteres, con mayúscula, minúscula, número y símbolo.</small>
+                  }
+                </label>
+                <label class="wide">Biografía
+                  <textarea formControlName="bio" rows="3" placeholder="Breve descripción profesional (opcional)"></textarea>
+                </label>
+              </div>
+              <div class="actions">
+                <button class="button primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
+                <button type="button" class="button ghost" (click)="showBarberForm.set(false)">Cancelar</button>
+              </div>
+            </form>
+          }
+          <div class="card-grid admin-grid">
+            @for (item of barbers(); track item.id) {
+              <article class="management-card barber-card">
+                <div class="barber-card-top">
+                  <span class="choice-avatar" aria-hidden="true">{{ initials(item.displayName) }}</span>
+                  <div>
+                    <span class="card-kicker">{{ item.isActive ? 'Activo' : 'Inactivo' }}</span>
+                    <h3>{{ item.displayName }}</h3>
+                  </div>
+                </div>
+                <p>{{ item.bio || 'Barbero profesional' }}</p>
+              </article>
+            } @empty { <div class="state soft">Aún no hay barberos registrados.</div> }
+          </div>
+        </div>
       }
 
       @if (!loading() && tab() === 'schedules') {
-        <div class="panel-heading"><div><h2>Horarios</h2><p>Configura la jornada de cada profesional.</p></div></div>
-        <form class="inline-form" [formGroup]="scheduleForm" (ngSubmit)="saveSchedule()"><div class="form-grid"><label>Barbero<select formControlName="barberId"><option value="">Selecciona</option>@for (barber of barbers(); track barber.id) { <option [value]="barber.id">{{ barber.displayName }}</option> }</select></label><label>Día<select formControlName="dayOfWeek">@for (day of days; track $index) { <option [value]="$index">{{ day }}</option> }</select></label><label>Inicio<input type="time" formControlName="startTime"></label><label>Fin<input type="time" formControlName="endTime"></label></div><div class="actions"><button class="button primary" type="submit">Guardar horario</button><button class="button ghost" type="button" (click)="loadSchedules()">Consultar</button></div></form>
-        <div class="table-wrap"><table><thead><tr><th>Barbero</th><th>Día</th><th>Jornada</th><th></th></tr></thead><tbody>@for (item of schedules(); track item.id) { <tr><td>{{ barberName(item.barberId) }}</td><td>{{ days[item.dayOfWeek] }}</td><td>{{ item.startTime }} – {{ item.endTime }}</td><td><button class="danger-action" (click)="deleteSchedule(item.id)">Eliminar</button></td></tr> }</tbody></table></div>
+        <div class="admin-panel">
+          <div class="panel-heading"><div><h2>Horarios</h2><p>Configura la jornada de cada profesional.</p></div></div>
+          <form class="inline-form" [formGroup]="scheduleForm" (ngSubmit)="saveSchedule()">
+            <div class="form-grid">
+              <label>Barbero
+                <select formControlName="barberId">
+                  <option value="">Selecciona</option>
+                  @for (barber of barbers(); track barber.id) { <option [value]="barber.id">{{ barber.displayName }}</option> }
+                </select>
+              </label>
+              <label>Día
+                <select formControlName="dayOfWeek">
+                  @for (day of days; track $index) { <option [value]="$index">{{ day }}</option> }
+                </select>
+              </label>
+              <label>Inicio<input type="time" formControlName="startTime"></label>
+              <label>Fin<input type="time" formControlName="endTime"></label>
+            </div>
+            <div class="actions">
+              <button class="button primary" type="submit">Guardar horario</button>
+              <button class="button ghost" type="button" (click)="loadSchedules()">Consultar</button>
+            </div>
+          </form>
+          <div class="table-wrap"><table><thead><tr><th>Barbero</th><th>Día</th><th>Jornada</th><th></th></tr></thead><tbody>
+            @for (item of schedules(); track item.id) {
+              <tr>
+                <td>{{ barberName(item.barberId) }}</td>
+                <td>{{ days[item.dayOfWeek] }}</td>
+                <td>{{ item.startTime }} – {{ item.endTime }}</td>
+                <td><button type="button" class="danger-action" (click)="deleteSchedule(item.id)">Eliminar</button></td>
+              </tr>
+            }
+          </tbody></table></div>
+        </div>
       }
 
       @if (!loading() && tab() === 'clients') {
-        <div class="panel-heading"><div><h2>Clientes</h2><p>Directorio de clientes registrados.</p></div><div class="filters"><input placeholder="Buscar por nombre o teléfono" [formControl]="filters.controls.search"><button class="button ghost" (click)="loadClients()">Buscar</button></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Cédula</th><th>Teléfono</th></tr></thead><tbody>@for (item of clients(); track item.id) { <tr><td>{{ item.fullName }}</td><td>{{ item.email }}</td><td>{{ item.documentNumber }}</td><td>{{ item.phone || '—' }}</td></tr> }</tbody></table></div><div class="pagination"><button [disabled]="page() <= 1" (click)="changePage(page() - 1)">Anterior</button><span>Página {{ page() }} de {{ totalPages() }}</span><button [disabled]="page() >= totalPages()" (click)="changePage(page() + 1)">Siguiente</button></div>
+        <div class="admin-panel">
+          <div class="panel-heading">
+            <div><h2>Clientes</h2><p>Directorio de clientes registrados.</p></div>
+            <div class="filters">
+              <input placeholder="Buscar por nombre o teléfono" [formControl]="filters.controls.search">
+              <button class="button ghost" (click)="loadClients()">Buscar</button>
+            </div>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Cédula</th><th>Teléfono</th></tr></thead><tbody>
+            @for (item of clients(); track item.id) {
+              <tr>
+                <td>{{ item.fullName }}</td>
+                <td>{{ item.email }}</td>
+                <td>{{ item.documentNumber }}</td>
+                <td>{{ item.phone || '—' }}</td>
+              </tr>
+            }
+          </tbody></table></div>
+          <div class="pagination">
+            <button [disabled]="page() <= 1" (click)="changePage(page() - 1)">Anterior</button>
+            <span>Página {{ page() }} de {{ totalPages() }}</span>
+            <button [disabled]="page() >= totalPages()" (click)="changePage(page() + 1)">Siguiente</button>
+          </div>
+        </div>
       }
     </section>
   `,
@@ -405,5 +556,18 @@ export class AdminPage {
    */
   barberName(id: string): string {
     return this.barbers().find((item) => item.id === id)?.displayName ?? 'Barbero';
+  }
+
+  /**
+   * Builds short initials for admin barber cards.
+   * @param name Display name.
+   */
+  initials(name: string): string {
+    return name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('');
   }
 }

@@ -41,7 +41,7 @@ public static class DatabaseSeeder
             {
                 UserId = barberUser.Id,
                 DisplayName = barberUser.FullName,
-                Bio = "Experienced professional barber."
+                Bio = "Barbero profesional con técnica precisa y asesoría de imagen."
             };
             database.BarberProfiles.Add(barber);
             foreach (var day in Enumerable.Range(1, 6).Select(value => (DayOfWeek)value))
@@ -54,6 +54,10 @@ public static class DatabaseSeeder
                     EndTime = new TimeOnly(18, 0)
                 });
             }
+        }
+        else if (string.Equals(barber.Bio, "Experienced professional barber.", StringComparison.Ordinal))
+        {
+            barber.Bio = "Barbero profesional con técnica precisa y asesoría de imagen.";
         }
 
         if (!await database.BarberServices.AnyAsync(cancellationToken))
